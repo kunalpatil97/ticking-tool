@@ -1,0 +1,45 @@
+from django.db import models
+from django.contrib.auth.models import User
+
+class Ticket(models.Model):
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('in_progress', 'In Progress'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    ]
+    
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    priority = models.CharField(max_length=50)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    creator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_tickets')
+    assigned_users = models.ManyToManyField(User, through='Assignment', related_name='assigned_tickets')
+
+class Assignment(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    assigned_date = models.DateTimeField(auto_now_add=True)
+
+class Activity(models.Model):
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    comment = models.TextField(null=True, blank=True)
+    status_change = models.CharField(max_length=20, choices=Ticket.STATUS_CHOICES, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE)
+    message = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+Ticket management views
+from django.core.mail import send_mail
+
+def send_assignment_notification(user_email, ticket):
+    subject = f"You have been assigned to Ticket #{ticket.id}: {ticket.title}"
+    message = f"Ticket details:\nTitle: {ticket.title}\nPriority: {ticket.priority}"
+    send_mail(subject, message, 'from@example.com', [user_email])
+
